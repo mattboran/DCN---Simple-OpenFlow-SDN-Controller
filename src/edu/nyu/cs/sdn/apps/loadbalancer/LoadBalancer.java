@@ -313,6 +313,7 @@ public class LoadBalancer implements IFloodlightModule, IOFSwitchListener,
 				return Command.CONTINUE;
 			}else
 			{
+				// Send reset packet
 				LoadBalancerInstance lb = this.instances.get(ipPacket.getDestinationAddress());
 				int newDestIP = lb.getNextHostIP();
 				byte[] newDestMAC = this.getHostMACAddress(newDestIP);
