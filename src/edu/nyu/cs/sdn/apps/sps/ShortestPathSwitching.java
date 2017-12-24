@@ -137,17 +137,21 @@ public class ShortestPathSwitching implements IFloodlightModule, IOFSwitchListen
     	// if they have, ignore and continue
     	for(Link l : links)
     	{
-    		boolean linkIsNew = true;
+    		boolean linkIsUnique = true;
     		for(Link current : unique)
     		{
-    			if(((l.getSrc() == current.getSrc()) && (l.getDst() == current.getDst()))
-    					|| ((l.getDst() == current.getSrc()) && (l.getSrc() == current.getDst())))
+    			if(((l.getSrc() == current.getSrc()) && (l.getDst() == current.getDst())))
     			{
-    				linkIsNew = false;
+    				linkIsUnique = false;
+    				break;
+    			}
+    			else if(((l.getDst() == current.getSrc()) && (l.getSrc() == current.getDst())))
+    			{
+    				linkIsUnique = false;
     				break;
     			}
     		}
-    		if(linkIsNew)
+    		if(linkIsUnique)
     		{
     			unique.add(l);
     		}

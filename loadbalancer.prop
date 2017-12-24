@@ -9,9 +9,9 @@ net.floodlightcontroller.linkdiscovery.internal.LinkDiscoveryManager,\
 net.floodlightcontroller.topology.TopologyManager,\
 net.floodlightcontroller.perfmon.PktInProcessingTime,\
 edu.nyu.cs.sdn.apps.util.ArpServer,\
-edu.nyu.cs.sdn.apps.l3routing.L3Routing,\
+edu.nyu.cs.sdn.apps.sps.ShortestPathSwitching,\
 edu.nyu.cs.sdn.apps.loadbalancer.LoadBalancer
-edu.nyu.cs.sdn.apps.l3routing.L3Routing.table = 1
+edu.nyu.cs.sdn.apps.sps.ShortestPathSwitching.table = 1
 edu.nyu.cs.sdn.apps.loadbalancer.LoadBalancer.table = 0
 edu.nyu.cs.sdn.apps.loadbalancer.LoadBalancer.instances =\
 10.0.100.1 00:00:01:00:00:01 10.0.0.2,10.0.0.3;\
