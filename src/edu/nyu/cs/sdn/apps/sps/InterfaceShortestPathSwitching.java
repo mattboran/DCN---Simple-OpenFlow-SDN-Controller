@@ -1,4 +1,4 @@
-package edu.brown.cs.sdn.apps.sps;
+package edu.nyu.cs.sdn.apps.sps;
 
 import net.floodlightcontroller.core.module.IFloodlightService;
 

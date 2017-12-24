@@ -1,4 +1,4 @@
-package edu.brown.cs.sdn.apps.sps;
+package edu.nyu.cs.sdn.apps.sps;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -23,8 +23,8 @@ import org.openflow.protocol.instruction.OFInstructionType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import edu.brown.cs.sdn.apps.util.Host;
-import edu.brown.cs.sdn.apps.util.SwitchCommands;
+import edu.nyu.cs.sdn.apps.util.Host;
+import edu.nyu.cs.sdn.apps.util.SwitchCommands;
 
 import net.floodlightcontroller.core.IFloodlightProviderService;
 import net.floodlightcontroller.core.IOFSwitch;
@@ -84,11 +84,6 @@ public class ShortestPathSwitching implements IFloodlightModule, IOFSwitchListen
         this.deviceProv = context.getServiceImpl(IDeviceService.class);
         
         this.knownHosts = new ConcurrentHashMap<IDevice,Host>();
-        
-        /*********************************************************************/
-        /* TODO: Initialize other class variables, if necessary              */
-        
-        /*********************************************************************/
 	}
 
 	/**
@@ -101,12 +96,7 @@ public class ShortestPathSwitching implements IFloodlightModule, IOFSwitchListen
 		log.info(String.format("Starting %s...", MODULE_NAME));
 		this.floodlightProv.addOFSwitchListener(this);
 		this.linkDiscProv.addListener(this);
-		this.deviceProv.addListener(this);
-		
-		/*********************************************************************/
-		/* TODO: Perform other tasks, if necessary                           */
-		/*********************************************************************/
-		
+		this.deviceProv.addListener(this);		
 	}
 	
 	/**
@@ -136,20 +126,23 @@ public class ShortestPathSwitching implements IFloodlightModule, IOFSwitchListen
     
     /**
      *  Filter links by unique only, since links are bi-directional
+     * @return list of unique links
      */
-    
     private Collection<Link> getAllUniqueLinks() 
     {
     	Collection<Link> links = this.getLinks();
     	Collection<Link> unique = new ArrayList<Link>();
     	
+    	// Go through all links and check if they've been seen already. If they haven't put them in unique
+    	// if they have, ignore and continue
     	for(Link l : links)
     	{
     		boolean linkIsNew = true;
     		for(Link current : unique)
     		{
     			if(((l.getSrc() == current.getSrc()) && (l.getDst() == current.getDst()))
-    					|| ((l.getDst() == current.getSrc()) && (l.getSrc() == current.getDst()))){
+    					|| ((l.getDst() == current.getSrc()) && (l.getSrc() == current.getDst())))
+    			{
     				linkIsNew = false;
     				break;
     			}
@@ -189,7 +182,8 @@ public class ShortestPathSwitching implements IFloodlightModule, IOFSwitchListen
      * 		BFT is O(V^2) because |E| is <= V^2
      * @param pathStart - the switch that the packet originates from 
      * 					(host->switch->->...path...->->switch->host)
-     * @return shortest path tree in the form of ConcurrentHashMap
+     * @return shortest path tree in the form of ConcurrentHashMap, where each entry is from the switch ID
+     * to the destination port
      */
     private ConcurrentHashMap<Long, Integer> getBestRoutesToHost(IOFSwitch pathStartSwitch) 
     {
@@ -229,7 +223,7 @@ public class ShortestPathSwitching implements IFloodlightModule, IOFSwitchListen
 	    		{
 	    		    int currDist = distances.get(swId);
 	    		    int nextDist = Integer.MAX_VALUE - 1;
-	    		
+	    		    
 	    		    if(swId == outLink.getSrc()) 
 	    		    { 
 		    			nextDist = distances.get(outLink.getDst());
@@ -367,6 +361,27 @@ public class ShortestPathSwitching implements IFloodlightModule, IOFSwitchListen
     }
     
     /**
+     * Iterate through all hosts, remove existing host rules, apply new ones.
+     * @return true if success, otherwise false
+     */
+    private boolean applyAllRules()
+    {
+    	for(Host h : this.getHosts())
+		{
+			if(this.removeHostRules(h) == false)
+			{
+				log.info(String.format("Apply all rules - remove host rules failure for host %s\n", h.getName()));
+				return false;
+			}
+			if(this.addHostRules(h)==false)
+			{
+				log.info(String.format("Apply all rules - add host rules failure for host %s \n", h.getName()));
+				return false;
+			}
+		}
+    	return true;
+    }
+    /**
      * Event handler called when a host joins the network.
      * @param device information about the host
      */
@@ -462,15 +477,10 @@ public class ShortestPathSwitching implements IFloodlightModule, IOFSwitchListen
 	@Override
 	public void switchRemoved(long switchId) 
 	{
-		IOFSwitch sw = this.floodlightProv.getSwitch(switchId);
 		log.info(String.format("Switch s%d removed", switchId));
 		
 		//Iterate through all hosts, remove existing rules, add new updated rules
-		for(Host h : this.getHosts())
-		{
-			this.removeHostRules(h);
-			this.addHostRules(h);
-		}
+		this.applyAllRules();
 	}
 
 	/**
@@ -497,11 +507,7 @@ public class ShortestPathSwitching implements IFloodlightModule, IOFSwitchListen
 					update.getDst(), update.getDstPort()));
 			}
 			//Iterate through all hosts, remove existing rules, add new updated rules
-			for(Host h : this.getHosts())
-			{
-				this.removeHostRules(h);
-				this.addHostRules(h);
-			}
+			this.applyAllRules();
 		}
 		
 		/*********************************************************************/
