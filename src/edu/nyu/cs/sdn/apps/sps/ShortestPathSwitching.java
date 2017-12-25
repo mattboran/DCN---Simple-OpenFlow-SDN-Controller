@@ -54,7 +54,7 @@ public class ShortestPathSwitching implements IFloodlightModule, IOFSwitchListen
     
     // Interface to Floodlight core for interacting with connected switches
     private IFloodlightProviderService floodlightProv;
-
+    
     // Interface to link discovery service
     private ILinkDiscoveryService linkDiscProv;
 
@@ -84,6 +84,7 @@ public class ShortestPathSwitching implements IFloodlightModule, IOFSwitchListen
         this.deviceProv = context.getServiceImpl(IDeviceService.class);
         
         this.knownHosts = new ConcurrentHashMap<IDevice,Host>();
+        
 	}
 
 	/**
@@ -179,15 +180,12 @@ public class ShortestPathSwitching implements IFloodlightModule, IOFSwitchListen
     	return incedentLinks;
     }
     /**
-     * Breadth First Traversal to compute shortest path to each host in O(V+E)
-     * 			This is faster than Dijkstra's which is O((E+V)log(V)) because we have no edge weights
-     * 			(and thus no negative weights either.)  
-     * 		This is a simplified version of Bellman-Ford which is O(V^2)
-     * 		BFT is O(V^2) because |E| is <= V^2
+     * Bellman-Ford using a queue to define which edges to explore next
+     * 		This is a simplified version which is O(V*E)
      * @param pathStart - the switch that the packet originates from 
      * 					(host->switch->->...path...->->switch->host)
      * @return shortest path tree in the form of ConcurrentHashMap, where each entry is from the switch ID
-     * to the destination port
+     * to the destination port (where to send a packet to the next switch on)
      */
     private ConcurrentHashMap<Long, Integer> getBestRoutesToHost(IOFSwitch pathStartSwitch) 
     {
@@ -212,7 +210,7 @@ public class ShortestPathSwitching implements IFloodlightModule, IOFSwitchListen
     	    	distances.put(sw.getId(), Integer.MAX_VALUE - 1);
     	    }
     	}
-    	//Bellman-Ford without negative cycle check
+    	// Bellman Ford using a queue to which switches should be explored next
     	for (int i = 0; i < switchList.size(); i++) 
     	{
     	    linksList = this.getAllUniqueLinks();
@@ -231,7 +229,7 @@ public class ShortestPathSwitching implements IFloodlightModule, IOFSwitchListen
 	    		    if(swId == outLink.getSrc()) 
 	    		    { 
 		    			nextDist = distances.get(outLink.getDst());
-		
+		    			// Relax edge
 		    			if(nextDist > (currDist + 1)) 
 		    			{
 		    			    parent.put(outLink.getDst(), outLink.getDstPort());
@@ -243,7 +241,7 @@ public class ShortestPathSwitching implements IFloodlightModule, IOFSwitchListen
 	    		    else 
 	    		    { 
 		    			nextDist = distances.get(outLink.getSrc());
-		
+		    			// Relax edge
 		    			if(nextDist > (currDist + 1)) {
 		    			    parent.put(outLink.getSrc(), outLink.getSrcPort());
 		    			    distances.put(outLink.getSrc(), (currDist + 1));
@@ -290,7 +288,7 @@ public class ShortestPathSwitching implements IFloodlightModule, IOFSwitchListen
     		
     		match.setMatchFields(matchFields);
     		
-    		log.info(String.format("\n--Installing IPv4 rule for host IP: %s\t connected to switch %d\n " ,IPv4.fromIPv4Address(h.getIPv4Address()),h.getSwitch().getId()));
+    		//log.info(String.format("\n--Installing IPv4 rule for host IP: %s\t connected to switch %d\n " ,IPv4.fromIPv4Address(h.getIPv4Address()),h.getSwitch().getId()));
     		
     		// Add rule for host -> switch ->...path... -> other switches
     		for (Long swId : swIds)
@@ -349,7 +347,7 @@ public class ShortestPathSwitching implements IFloodlightModule, IOFSwitchListen
 		
 		match.setMatchFields(matchFields);
 		
-		log.info(String.format("\n--Removing IPv4 rule for host IP: %s\t connected to switch %d\n " ,IPv4.fromIPv4Address(h.getIPv4Address()),h.getSwitch().getId()));
+		//log.info(String.format("\n--Removing IPv4 rule for host IP: %s\t connected to switch %d\n " ,IPv4.fromIPv4Address(h.getIPv4Address()),h.getSwitch().getId()));
 		
     	for(IOFSwitch sw : this.getSwitches().values())
     	{
@@ -466,11 +464,7 @@ public class ShortestPathSwitching implements IFloodlightModule, IOFSwitchListen
 		log.info(String.format("Switch s%d added", switchId));
 		
 		//Iterate through all hosts, remove existing rules, add new updated rules
-		for(Host h : this.getHosts())
-		{
-			this.removeHostRules(h);
-			this.addHostRules(h);
-		}
+		this.applyAllRules();
 		
 	}
 

@@ -269,20 +269,20 @@ public class LoadBalancer implements IFloodlightModule, IOFSwitchListener,
 		/*       connection-specific rules to rewrite IP and MAC addresses;  */
 		/*       for all other TCP packets sent to a virtual IP, send a TCP  */
 		/*       reset; ignore all other packets                             */
-		
+		/*		THIS DOESN'T WORK PROPERLY YET (10:09PM Dec 24, 2017		 */
 		/*********************************************************************/
 		if(ethPkt.getEtherType() == Ethernet.TYPE_ARP)
 		{
 			// Send an ARP reply for ARP requests for virtual IPs
 			ARP arpPkt = new ARP();
-			Ethernet ethernetPacket = new Ethernet();
 			arpPkt.setPayload(ethPkt.getPayload());
+			Ethernet ethSendPacket = new Ethernet();
 			
 			int targetVirtualIP = IPv4.toIPv4Address(arpPkt.getTargetProtocolAddress());
 			byte[] mac = this.instances.get(targetVirtualIP).getVirtualMAC();
 			
 			ARP arpPacket = new ARP();
-			ethernetPacket.setPayload(arpPacket);
+			ethSendPacket.setPayload(arpPacket);
 			
 			arpPacket.setOpCode(ARP.OP_REPLY);
 			arpPacket.setProtocolType(ARP.PROTO_TYPE_IP);
@@ -294,7 +294,7 @@ public class LoadBalancer implements IFloodlightModule, IOFSwitchListener,
 			arpPacket.setSenderProtocolAddress(targetVirtualIP);
 			arpPacket.setTargetProtocolAddress(IPv4.toIPv4Address(arpPkt.getSenderProtocolAddress()));
 			
-			if(false == SwitchCommands.sendPacket(sw, (short) pktIn.getInPort(), ethernetPacket))
+			if(false == SwitchCommands.sendPacket(sw, (short) pktIn.getInPort(), ethSendPacket))
 			{
 				log.info(String.format("Failed to send ARP reply to destination IP %d, MAC %d", targetVirtualIP, mac[0]));
 			}else
